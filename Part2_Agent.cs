@@ -155,7 +155,7 @@ public class Part2_Agent : MonoBehaviour
         Application.targetFrameRate = 120;
         Debug.Log(Waypoints);
         // Get coordinates for the start and end nodes in order to spawn bus/child at start/end nodess respectively.
-        bus = GameObject.Find("SchoolBus");
+        bus = GameObject.Find("Taxi_1");
         start_position = start.transform.position;
         end_position = end.transform.position;
         old_position = transform.position;
