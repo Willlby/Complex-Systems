@@ -31,8 +31,8 @@ public class Part2_Agent : MonoBehaviour
     GameObject PersonInstance;
     public int passengersToSpawn;
 
-
-    public GameObject[] potentialPassengers;
+    
+    GameObject myPassenger;
     private List<GameObject> spawnedNodes = new List<GameObject>();
 
     int passengers = 0;
@@ -52,8 +52,8 @@ public class Part2_Agent : MonoBehaviour
     Text t_fps;
     Text t_Speed;
 
-    // The game object which stores the bus. This is the GameObject we attach our Agent script to.
-    GameObject bus; 
+    // The game object which stores the taxi. This is the GameObject we attach our Agent script to.
+    GameObject myTaxi; 
 
     Vector3 OffSet = new Vector3(0, 0.5f, 0);
 
@@ -70,6 +70,15 @@ public class Part2_Agent : MonoBehaviour
     private bool slowedDown = false;
     private const float CLOSE_DISTANCE = 1;
 
+    GameObject RandomSeed()
+    {
+        System.Random rand = new System.Random(Guid.NewGuid().GetHashCode());
+        GameObject randomSeed;
+
+        randomSeed = Waypoints[rand.Next(1, 12)];
+
+        return randomSeed;
+    }
 
     IEnumerator FinishSimulation()
     {
@@ -90,21 +99,27 @@ public class Part2_Agent : MonoBehaviour
 
     }
 
+
+
+
     void CollectPassenger()
     {
-        potentialPassengers = GameObject.FindGameObjectsWithTag("Passenger");
+        //myPassenger = GameObject.FindGameObjectsWithTag("Passenger");
         connectionsTravelled++;
         t_ConnectionsTravelled.text = "Connections Travelled: " + connectionsTravelled;
         arrived = true;
-        for (int j = 0; j < potentialPassengers.Length; j++)
-        {
-            if (Vector3.Distance(bus.transform.position, potentialPassengers[j].transform.position) < 10)
+        Debug.Log("Passenger: " + myPassenger.name + ", myTaxi: " + myTaxi + ", Distance: " + Vector3.Distance(myTaxi.transform.position, myPassenger.transform.position)); 
+        
+       
+            if (Vector3.Distance(myTaxi.transform.position, myPassenger.transform.position) < 10)
             {
-                Destroy(potentialPassengers[j].gameObject);
+                Destroy(myPassenger);
+                Debug.Log(myPassenger.name + " has been destroyed.");
+            
                 passengers += 1;
                 currentSpeed = MAX_SPEED - (MAX_SPEED / 10 * passengers); 
             }
-        }
+        
     }
 
 
@@ -144,7 +159,7 @@ public class Part2_Agent : MonoBehaviour
         // Run A Star...
         // ConnectionArray stores all the connections in the route to the goal / end node.
         ConnectionArray = AStarManager.PathfindAStar(end, start);
-        Debug.Log(ConnectionArray.Count);
+        
 
     }
 
@@ -153,35 +168,16 @@ public class Part2_Agent : MonoBehaviour
     {
         
         Application.targetFrameRate = 120;
-        Debug.Log(Waypoints);
-        // Get coordinates for the start and end nodes in order to spawn bus/child at start/end nodess respectively.
-        bus = GameObject.Find("Taxi_1");
+
+        // Get coordinates for the start and end nodes in order to spawn taxi/passenger at start/end nodes respectively.
+        myTaxi = this.gameObject;
+        Debug.Log("this: " + myTaxi);
         start_position = start.transform.position;
-        end_position = end.transform.position;
+        //end_position = end.transform.position;
         old_position = transform.position;
 
-        bus.transform.position = start.transform.position;
+        myTaxi.transform.position = start.transform.position;
 
-
-        Debug.Log(end_position);
-        t_Passengers = GameObject.Find("Canvas/Passengers").GetComponent<Text>();
-        t_Returning = GameObject.Find("Canvas/Returning").GetComponent<Text>();
-        t_Runtime = GameObject.Find("Canvas/Runtime").GetComponent<Text>();
-        t_ConnectionsTravelled = GameObject.Find("Canvas/ConnectionsTravelled").GetComponent<Text>();
-        t_DistanceTravelled = GameObject.Find("Canvas/DistanceTravelled").GetComponent<Text>();
-        t_node_start = GameObject.Find("Canvas/Node_START").GetComponent<Text>();
-        t_node_end = GameObject.Find("Canvas/Node_END").GetComponent<Text>();
-        t_fps = GameObject.Find("Canvas/FPS").GetComponent<Text>();
-        t_Speed = GameObject.Find("Canvas/Speed").GetComponent<Text>();
-
-        t_node_start.text = "Start Node: " + start.ToString();
-        t_node_end.text = "End Node: " + end.ToString();
-  
-        if (start == null || end == null)
-        {
-            Debug.Log("No start or end waypoints.");
-            return;
-        }
         // Find all the waypoints in the level.
         GameObject[] GameObjectsWithWaypointTag;
         GameObjectsWithWaypointTag = GameObject.FindGameObjectsWithTag("Waypoint");
@@ -193,6 +189,48 @@ public class Part2_Agent : MonoBehaviour
                 Waypoints.Add(waypoint);
             }
         }
+
+
+
+
+        t_Passengers = GameObject.Find("Canvas/Passengers").GetComponent<Text>();
+        t_Returning = GameObject.Find("Canvas/Returning").GetComponent<Text>();
+        t_Runtime = GameObject.Find("Canvas/Runtime").GetComponent<Text>();
+        t_ConnectionsTravelled = GameObject.Find("Canvas/ConnectionsTravelled").GetComponent<Text>();
+        t_DistanceTravelled = GameObject.Find("Canvas/DistanceTravelled").GetComponent<Text>();
+        t_node_start = GameObject.Find("Canvas/Node_START").GetComponent<Text>();
+        t_node_end = GameObject.Find("Canvas/Node_END").GetComponent<Text>();
+        t_fps = GameObject.Find("Canvas/FPS").GetComponent<Text>();
+        t_Speed = GameObject.Find("Canvas/Speed").GetComponent<Text>();
+
+        t_node_start.text = "Start Node: " + start.ToString();
+
+        
+        GameObject randomNode;
+
+
+        //randomNode = RandomSeed();
+
+        randomNode = Waypoints[11];
+
+        
+
+        spawnedNodes.Add(randomNode);
+        Debug.Log("SpawnNode: " + randomNode);
+        myPassenger = Instantiate(PersonPrefab, randomNode.transform.position - new Vector3(-6.0f, 0f, 0f), Quaternion.identity);
+        myPassenger.gameObject.tag = "Passenger";
+
+        end = randomNode;
+        Debug.Log("This game object: " + myTaxi + ", END: " + end);
+        t_node_end.text = "End Node: " + end.ToString();
+
+
+        if (start == null || end == null)
+        {
+            Debug.Log("No start or end waypoints.");
+            return;
+        }
+        
         // Go through the waypoints and create connections.
         foreach (GameObject waypoint in Waypoints)
         {
@@ -206,29 +244,17 @@ public class Part2_Agent : MonoBehaviour
                 AStarManager.AddConnection(aConnection);
             }
         }
+
+        
+
         // Run A Star...
         // ConnectionArray stores all the connections in the route to the goal / end node.
         ConnectionArray = AStarManager.PathfindAStar(start, end);
         Debug.Log(ConnectionArray.Count);
 
-
-        System.Random rand = new System.Random();
-        potentialPassengers = new GameObject[passengersToSpawn];
-
-        for (int i = 0; i < passengersToSpawn; i++)
-        {
-            
-            GameObject randomNode;
-            do
-             {
-                 randomNode = Waypoints[rand.Next(1, 12)];
-             } while (spawnedNodes.Contains(randomNode));
-            
-            spawnedNodes.Add(randomNode);
-            Debug.Log("SpawnNode: " + randomNode);
-            potentialPassengers[i] = Instantiate(PersonPrefab, randomNode.transform.position - new Vector3(-6.0f, 0f, 0f), Quaternion.identity);
-            potentialPassengers[i].gameObject.tag = "Passenger";
-        }
+        
+        
+        
     }
 
     // Draws debug objects in the editor and during editor play (if option set).
@@ -246,7 +272,8 @@ public class Part2_Agent : MonoBehaviour
     {
        if (isPlaying == true)
         {
-
+            
+            
             fps = 1 / Time.unscaledDeltaTime;
             t_fps.text = "Framerate: " + fps.ToString("00");
             t_DistanceTravelled.text = "Distance Travelled: " + totalDistanceTravelled.ToString("00");
@@ -271,7 +298,7 @@ public class Part2_Agent : MonoBehaviour
             {
                 // Display the distance to waypoint
                 Vector3 direction = ConnectionArray[connectionsTravelled].ToNode.transform.position - transform.position;
-
+                
                 //closest.transform.position - transform.position;
                 // Determine the distance of the vector
                 float distance = direction.magnitude;
@@ -289,12 +316,13 @@ public class Part2_Agent : MonoBehaviour
 
                 {
                     if (distance < CLOSE_DISTANCE && arrived == false)
-                    {
+                    {                 
                         CollectPassenger();
                     }
 
                     if (distance > CLOSE_DISTANCE)
                     {
+                       
                         arrived = false;
                     }
 
@@ -303,14 +331,14 @@ public class Part2_Agent : MonoBehaviour
             }
             else
             {
-
+                // if we are already returning...
                 if (returning == true)
                 {
                     Debug.Log("FINISHED");
                     
                     playTimer = false;
 
-                    StartCoroutine(FinishSimulation());
+                   // StartCoroutine(FinishSimulation());
 
                     isPlaying = false;
 
@@ -321,13 +349,8 @@ public class Part2_Agent : MonoBehaviour
                 }
                 else
                 {
-                    Debug.Log("HALFWAY THERE, CA Count: " + ConnectionArray.Count);
-
-                    if (returning == false)
-                    {
-                        ReturnToStart();
-                    }
-             
+                    Debug.Log("HALFWAY THERE, CA Count: " + ConnectionArray.Count);                 
+                    ReturnToStart();
                     connectionsTravelled = 0;               
                 }
 
@@ -335,7 +358,7 @@ public class Part2_Agent : MonoBehaviour
         }
         else
         {
-
+            return;
         }
 
     }
