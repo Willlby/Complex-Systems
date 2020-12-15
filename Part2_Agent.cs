@@ -29,15 +29,14 @@ public class Part2_Agent : MonoBehaviour
     [SerializeField]
     public GameObject PersonPrefab;
     GameObject PersonInstance;
-    public int passengersToSpawn;
+
 
     
-    GameObject myPassenger;
-    private List<GameObject> spawnedNodes = new List<GameObject>();
+   GameObject myPassenger;
 
+    [SerializeField]
     int passengers = 0;
-    Vector3 start_position;
-    Vector3 end_position;
+
     Vector3 old_position;
     
   
@@ -70,79 +69,59 @@ public class Part2_Agent : MonoBehaviour
     private bool slowedDown = false;
     private const float CLOSE_DISTANCE = 1;
 
+
+    void InitialiseText()
+    {
+        t_Passengers = GameObject.Find("Canvas/Passengers").GetComponent<Text>();
+        t_Returning = GameObject.Find("Canvas/Returning").GetComponent<Text>();
+        t_Runtime = GameObject.Find("Canvas/Runtime").GetComponent<Text>();
+        t_ConnectionsTravelled = GameObject.Find("Canvas/ConnectionsTravelled").GetComponent<Text>();
+        t_DistanceTravelled = GameObject.Find("Canvas/DistanceTravelled").GetComponent<Text>();
+        t_node_start = GameObject.Find("Canvas/Node_START").GetComponent<Text>();
+        t_node_end = GameObject.Find("Canvas/Node_END").GetComponent<Text>();
+        t_fps = GameObject.Find("Canvas/FPS").GetComponent<Text>();
+        t_Speed = GameObject.Find("Canvas/Speed").GetComponent<Text>();
+        t_node_start.text = "Start Node: " + start.ToString();
+    }
+
     GameObject RandomSeed()
     {
         System.Random rand = new System.Random(Guid.NewGuid().GetHashCode());
         GameObject randomSeed;
-
         randomSeed = Waypoints[rand.Next(1, 12)];
-
         return randomSeed;
     }
 
-    IEnumerator FinishSimulation()
+    IEnumerator DeliverPassenger()
     {
+        playTimer = false;
+        isPlaying = false;
         
-        Debug.Log("FinishSimulation() has been called.");
-        for (int i = 0; i < passengers;)
-        {
-            Instantiate(PersonPrefab, start_position - new Vector3(0.0f, 0f, 10.0f + passengers), Quaternion.identity);
-            passengers -= 1;          
-        }
-        //Instantiate(People[0], start_position - new Vector3(0.0f, 0f, 10.0f), Quaternion.identity);
-        
+        myPassenger = Instantiate(PersonPrefab, myTaxi.transform.position - new Vector3(0.0f, 0f, 5.0f), Quaternion.identity);
+        myPassenger.gameObject.tag = "Passenger";
+        myPassenger.gameObject.name = myTaxi.name + " Passenger.";
+        passengers -= 1;
+        Debug.Log(myTaxi.name + " has arrived at their destination!");
         t_Passengers.text = ("Passengers: " + passengers + "/10");
-
-        yield return new WaitForSeconds(5);
-
+        yield return new WaitForSeconds(50);
         UnityEditor.EditorApplication.isPlaying = false;
-
     }
-
-
-
 
     void CollectPassenger()
-    {
-        //myPassenger = GameObject.FindGameObjectsWithTag("Passenger");
-        connectionsTravelled++;
-        t_ConnectionsTravelled.text = "Connections Travelled: " + connectionsTravelled;
-        arrived = true;
-        Debug.Log("Passenger: " + myPassenger.name + ", myTaxi: " + myTaxi + ", Distance: " + Vector3.Distance(myTaxi.transform.position, myPassenger.transform.position)); 
-        
-       
-            if (Vector3.Distance(myTaxi.transform.position, myPassenger.transform.position) < 10)
-            {
-                Destroy(myPassenger);
-                Debug.Log(myPassenger.name + " has been destroyed.");
-            
-                passengers += 1;
-                currentSpeed = MAX_SPEED - (MAX_SPEED / 10 * passengers); 
-            }
-        
+    {     
+            arrived = true;          
+            Destroy(myPassenger);
+            Debug.Log(myPassenger.name + " has been destroyed.");
+            passengers += 1;
+            currentSpeed = MAX_SPEED - (MAX_SPEED / 10 * passengers);
     }
-
 
     void ReturnToStart()
     {
+        Debug.Log(myTaxi.name + " is delivering.");
         returning = true;
-
-        if (start == null || end == null)
-        {
-            Debug.Log("No start or end waypoints.");
-            return;
-        }
-        // Find all the waypoints in the level.
-        GameObject[] GameObjectsWithWaypointTag;
-        GameObjectsWithWaypointTag = GameObject.FindGameObjectsWithTag("Waypoint");
-        foreach (GameObject waypoint in GameObjectsWithWaypointTag)
-        {
-            WaypointCON tmpWaypointCon = waypoint.GetComponent<WaypointCON>();
-            if (tmpWaypointCon)
-            {
-                Waypoints.Add(waypoint);
-            }
-        }
+        
+        
         // Go through the waypoints and create connections.
         foreach (GameObject waypoint in Waypoints)
         {
@@ -150,32 +129,27 @@ public class Part2_Agent : MonoBehaviour
             // Loop through a waypoints connections.
             foreach (GameObject WaypointConNode in tmpWaypointCon.Connections)
             {
-                Connection aConnection = new Connection();
-                aConnection.FromNode = waypoint;
-                aConnection.ToNode = WaypointConNode;
+                Connection aConnection = new Connection
+                {
+                    FromNode = waypoint,
+                    ToNode = WaypointConNode
+                };
                 AStarManager.AddConnection(aConnection);
             }
         }
         // Run A Star...
         // ConnectionArray stores all the connections in the route to the goal / end node.
         ConnectionArray = AStarManager.PathfindAStar(end, start);
-        
 
     }
 
     // Start is called before the first frame update
     void Start()
     {
-        
-        Application.targetFrameRate = 120;
-
-        // Get coordinates for the start and end nodes in order to spawn taxi/passenger at start/end nodes respectively.
+        InitialiseText();
         myTaxi = this.gameObject;
-        Debug.Log("this: " + myTaxi);
-        start_position = start.transform.position;
-        //end_position = end.transform.position;
+        Application.targetFrameRate = 120;
         old_position = transform.position;
-
         myTaxi.transform.position = start.transform.position;
 
         // Find all the waypoints in the level.
@@ -190,38 +164,14 @@ public class Part2_Agent : MonoBehaviour
             }
         }
 
-
-
-
-        t_Passengers = GameObject.Find("Canvas/Passengers").GetComponent<Text>();
-        t_Returning = GameObject.Find("Canvas/Returning").GetComponent<Text>();
-        t_Runtime = GameObject.Find("Canvas/Runtime").GetComponent<Text>();
-        t_ConnectionsTravelled = GameObject.Find("Canvas/ConnectionsTravelled").GetComponent<Text>();
-        t_DistanceTravelled = GameObject.Find("Canvas/DistanceTravelled").GetComponent<Text>();
-        t_node_start = GameObject.Find("Canvas/Node_START").GetComponent<Text>();
-        t_node_end = GameObject.Find("Canvas/Node_END").GetComponent<Text>();
-        t_fps = GameObject.Find("Canvas/FPS").GetComponent<Text>();
-        t_Speed = GameObject.Find("Canvas/Speed").GetComponent<Text>();
-
-        t_node_start.text = "Start Node: " + start.ToString();
-
-        
         GameObject randomNode;
-
-
-        //randomNode = RandomSeed();
-
-        randomNode = Waypoints[11];
-
-        
-
-        spawnedNodes.Add(randomNode);
-        Debug.Log("SpawnNode: " + randomNode);
-        myPassenger = Instantiate(PersonPrefab, randomNode.transform.position - new Vector3(-6.0f, 0f, 0f), Quaternion.identity);
+        randomNode = RandomSeed();
+        myPassenger = Instantiate(PersonPrefab, randomNode.transform.position - new Vector3(-3.0f, 0f, -3.0f), Quaternion.identity);
         myPassenger.gameObject.tag = "Passenger";
+        myPassenger.gameObject.name = myTaxi.name + " Passenger.";
 
         end = randomNode;
-        Debug.Log("This game object: " + myTaxi + ", END: " + end);
+        Debug.Log(myTaxi + " is driving from " + start + ", and collecting from " + end); // THIS WORKS
         t_node_end.text = "End Node: " + end.ToString();
 
 
@@ -230,7 +180,7 @@ public class Part2_Agent : MonoBehaviour
             Debug.Log("No start or end waypoints.");
             return;
         }
-        
+
         // Go through the waypoints and create connections.
         foreach (GameObject waypoint in Waypoints)
         {
@@ -238,23 +188,19 @@ public class Part2_Agent : MonoBehaviour
             // Loop through a waypoints connections.
             foreach (GameObject WaypointConNode in tmpWaypointCon.Connections)
             {
-                Connection aConnection = new Connection();
-                aConnection.FromNode = waypoint;
-                aConnection.ToNode = WaypointConNode;
+                Connection aConnection = new Connection
+                {
+                    FromNode = waypoint,
+                    ToNode = WaypointConNode
+                };
                 AStarManager.AddConnection(aConnection);
             }
         }
-
-        
-
         // Run A Star...
         // ConnectionArray stores all the connections in the route to the goal / end node.
-        ConnectionArray = AStarManager.PathfindAStar(start, end);
-        Debug.Log(ConnectionArray.Count);
+       
+        ConnectionArray = AStarManager.PathfindAStar(start, end);       
 
-        
-        
-        
     }
 
     // Draws debug objects in the editor and during editor play (if option set).
@@ -272,30 +218,27 @@ public class Part2_Agent : MonoBehaviour
     {
        if (isPlaying == true)
         {
-            
-            
+         
             fps = 1 / Time.unscaledDeltaTime;
             t_fps.text = "Framerate: " + fps.ToString("00");
             t_DistanceTravelled.text = "Distance Travelled: " + totalDistanceTravelled.ToString("00");
             t_Passengers.text = "Passengers: " + passengers.ToString() + "/10";
             t_Returning.text = "Returning: " + returning;
             t_Speed.text = "Speed: " + currentSpeed;
-            
  
             float distanceTravelled = Vector3.Distance(old_position, transform.position);
             totalDistanceTravelled += distanceTravelled;
             old_position = transform.position;
 
-
             if (playTimer == true)
             {
-                t_Runtime.text = ("Runtime: " + Time.time);
-                
+                t_Runtime.text = ("Runtime: " + Time.time);         
             }
 
 
             if (connectionsTravelled < ConnectionArray.Count)
             {
+               
                 // Display the distance to waypoint
                 Vector3 direction = ConnectionArray[connectionsTravelled].ToNode.transform.position - transform.position;
                 
@@ -315,14 +258,23 @@ public class Part2_Agent : MonoBehaviour
                 transform.rotation = rotation;
 
                 {
+                    // Check if we have reached a node.
                     if (distance < CLOSE_DISTANCE && arrived == false)
-                    {                 
-                        CollectPassenger();
+                    {                
+                        connectionsTravelled++;
+                        // Check if our node contains our passenger.
+                        if (myPassenger != null)
+                        {
+                            if (Vector3.Distance(myTaxi.transform.position, myPassenger.transform.position) < 10)
+                            {                           
+                                CollectPassenger();
+                            }
+                        }                   
+                        
                     }
 
                     if (distance > CLOSE_DISTANCE)
-                    {
-                       
+                    {          
                         arrived = false;
                     }
 
@@ -333,33 +285,19 @@ public class Part2_Agent : MonoBehaviour
             {
                 // if we are already returning...
                 if (returning == true)
-                {
-                    Debug.Log("FINISHED");
-                    
-                    playTimer = false;
-
-                   // StartCoroutine(FinishSimulation());
-
-                    isPlaying = false;
-
-
-
-
-                    //Application.Quit()
+                {                                       
+                    StartCoroutine(DeliverPassenger());                
                 }
                 else
                 {
-                    Debug.Log("HALFWAY THERE, CA Count: " + ConnectionArray.Count);                 
                     ReturnToStart();
                     connectionsTravelled = 0;               
                 }
-
             }
         }
         else
         {
             return;
         }
-
     }
 }
