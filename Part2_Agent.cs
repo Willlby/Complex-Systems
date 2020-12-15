@@ -29,8 +29,7 @@ public class Part2_Agent : MonoBehaviour
     [SerializeField]
     public GameObject PersonPrefab;
     GameObject PersonInstance;
-
-
+    
     
    GameObject myPassenger;
 
@@ -38,18 +37,16 @@ public class Part2_Agent : MonoBehaviour
     int passengers = 0;
 
     Vector3 old_position;
-    
-  
+
     // Initialising text handlers (UI).
     Text t_Passengers;
-    Text t_Returning;
     Text t_Runtime;
-    Text t_ConnectionsTravelled;
-    Text t_DistanceTravelled;
-    Text t_node_start;
-    Text t_node_end;
     Text t_fps;
     Text t_Speed;
+
+    public GameObject go_passengers;
+    public GameObject go_Speed;
+    
 
     // The game object which stores the taxi. This is the GameObject we attach our Agent script to.
     GameObject myTaxi; 
@@ -61,27 +58,22 @@ public class Part2_Agent : MonoBehaviour
     Boolean playTimer = true; //
     Boolean isPlaying = true; // Used to control the Update method.
 
-    int connectionsTravelled = 0;
+    public int connectionsTravelled = 0;
 
     // Speed variables
-    private const float MAX_SPEED = 20;
-    private float currentSpeed = MAX_SPEED;
+    private float MAX_SPEED = 20;
+    [SerializeField]
+    private float currentSpeed = 20;
     private bool slowedDown = false;
     private const float CLOSE_DISTANCE = 1;
 
 
     void InitialiseText()
     {
-        t_Passengers = GameObject.Find("Canvas/Passengers").GetComponent<Text>();
-        t_Returning = GameObject.Find("Canvas/Returning").GetComponent<Text>();
-        t_Runtime = GameObject.Find("Canvas/Runtime").GetComponent<Text>();
-        t_ConnectionsTravelled = GameObject.Find("Canvas/ConnectionsTravelled").GetComponent<Text>();
-        t_DistanceTravelled = GameObject.Find("Canvas/DistanceTravelled").GetComponent<Text>();
-        t_node_start = GameObject.Find("Canvas/Node_START").GetComponent<Text>();
-        t_node_end = GameObject.Find("Canvas/Node_END").GetComponent<Text>();
+        t_Passengers = go_passengers.GetComponent<Text>();
+        t_Runtime = GameObject.Find("Canvas/Runtime").GetComponent<Text>();      
         t_fps = GameObject.Find("Canvas/FPS").GetComponent<Text>();
-        t_Speed = GameObject.Find("Canvas/Speed").GetComponent<Text>();
-        t_node_start.text = "Start Node: " + start.ToString();
+        
     }
 
     GameObject RandomSeed()
@@ -92,7 +84,7 @@ public class Part2_Agent : MonoBehaviour
         return randomSeed;
     }
 
-    IEnumerator DeliverPassenger()
+    void DeliverPassenger()
     {
         playTimer = false;
         isPlaying = false;
@@ -103,8 +95,7 @@ public class Part2_Agent : MonoBehaviour
         passengers -= 1;
         Debug.Log(myTaxi.name + " has arrived at their destination!");
         t_Passengers.text = ("Passengers: " + passengers + "/10");
-        yield return new WaitForSeconds(50);
-        UnityEditor.EditorApplication.isPlaying = false;
+        
     }
 
     void CollectPassenger()
@@ -113,7 +104,7 @@ public class Part2_Agent : MonoBehaviour
             Destroy(myPassenger);
             Debug.Log(myPassenger.name + " has been destroyed.");
             passengers += 1;
-            currentSpeed = MAX_SPEED - (MAX_SPEED / 10 * passengers);
+            MAX_SPEED = MAX_SPEED - (MAX_SPEED / 10 * passengers);
     }
 
     void ReturnToStart()
@@ -172,7 +163,7 @@ public class Part2_Agent : MonoBehaviour
 
         end = randomNode;
         Debug.Log(myTaxi + " is driving from " + start + ", and collecting from " + end); // THIS WORKS
-        t_node_end.text = "End Node: " + end.ToString();
+        
 
 
         if (start == null || end == null)
@@ -199,12 +190,13 @@ public class Part2_Agent : MonoBehaviour
         // Run A Star...
         // ConnectionArray stores all the connections in the route to the goal / end node.
        
-        ConnectionArray = AStarManager.PathfindAStar(start, end);       
+        ConnectionArray = AStarManager.PathfindAStar(start, end);
+
 
     }
 
     // Draws debug objects in the editor and during editor play (if option set).
-    void OnDrawGizmos()
+    void OnDrawGizmosSelected()
     {
         // Draw path.
         foreach (Connection aConnection in ConnectionArray)
@@ -221,10 +213,9 @@ public class Part2_Agent : MonoBehaviour
          
             fps = 1 / Time.unscaledDeltaTime;
             t_fps.text = "Framerate: " + fps.ToString("00");
-            t_DistanceTravelled.text = "Distance Travelled: " + totalDistanceTravelled.ToString("00");
+            
             t_Passengers.text = "Passengers: " + passengers.ToString() + "/10";
-            t_Returning.text = "Returning: " + returning;
-            t_Speed.text = "Speed: " + currentSpeed;
+            
  
             float distanceTravelled = Vector3.Distance(old_position, transform.position);
             totalDistanceTravelled += distanceTravelled;
@@ -256,6 +247,7 @@ public class Part2_Agent : MonoBehaviour
                 direction.y = 0;
                 Quaternion rotation = Quaternion.LookRotation(direction, Vector3.up);
                 transform.rotation = rotation;
+                CollisionDetection();
 
                 {
                     // Check if we have reached a node.
@@ -286,7 +278,7 @@ public class Part2_Agent : MonoBehaviour
                 // if we are already returning...
                 if (returning == true)
                 {                                       
-                    StartCoroutine(DeliverPassenger());                
+                    DeliverPassenger();                
                 }
                 else
                 {
@@ -297,7 +289,135 @@ public class Part2_Agent : MonoBehaviour
         }
         else
         {
-            return;
+            connectionsTravelled = 0;
+        }
+    }
+
+    void CollisionDetection()
+    {
+        List<float> taxiDistancesToNextNode = new List<float>();
+        GameObject[] otherTaxis = GameObject.FindGameObjectsWithTag("Taxi"); // working
+        Debug.Log(otherTaxis.Length);
+        bool coming_at_me = false;
+        bool crashing = false;
+        GameObject currentNode = ConnectionArray[connectionsTravelled].FromNode;
+        GameObject nextNode = ConnectionArray[connectionsTravelled].ToNode;
+
+
+
+        int i = 0;
+        foreach (var otherTaxi in otherTaxis)
+        {
+            if (otherTaxi.name == this.gameObject.name)
+            {
+                Debug.Log("This is my taxi.");
+                continue;
+            }
+
+            // Gain access to information regarding other taxis.
+            Part2_Agent path = otherTaxi.GetComponent<Part2_Agent>();
+            Debug.Log(path);
+
+            if (path == null)
+            {
+                Debug.Log("path == null");
+                continue;
+                
+            }
+
+            if (path.ConnectionArray[path.connectionsTravelled].ToNode != (nextNode || currentNode))
+            {              
+                continue;
+            }
+
+            if (path.ConnectionArray[path.connectionsTravelled].ToNode == currentNode)
+            {              
+                coming_at_me = true;
+            }
+ 
+            
+                
+            
+          
+
+            float distanceToMe = Vector3.Distance(myTaxi.transform.position, otherTaxi.transform.position);
+
+            if (distanceToMe < 9) // the safety zone
+            {
+                taxiDistancesToNextNode.Add(Vector3.Distance(otherTaxi.transform.position, nextNode.transform.position));
+                Debug.Log("Distances added.");
+                i++;
+                crashing = true;
+            }
+
+        }
+
+        bool closerThanOther = true;
+        float myDistanceToNextNode = Vector3.Distance(nextNode.transform.position, transform.position);
+
+        foreach (var otherDistance in taxiDistancesToNextNode)
+        {
+           
+            if (myDistanceToNextNode > otherDistance)
+            {
+                closerThanOther = false;
+            }
+        }
+
+        if (crashing == true)
+        {
+            if (closerThanOther == true)
+            {
+                Speedup();            
+            }
+
+            else if (coming_at_me == true)
+            {
+                transform.localPosition = transform.localPosition + transform.right;
+            }
+
+            else
+            {               
+                Slowdown();
+
+            }
+
+        }
+        
+        else
+        {
+            Speedup();
+        }
+
+    }
+
+
+    void Speedup()
+    {
+        if (currentSpeed + 5 < MAX_SPEED)
+        {
+            currentSpeed += 5;
+        }
+        else 
+        {
+            currentSpeed = MAX_SPEED;
+        }
+
+        if (currentSpeed > MAX_SPEED)
+        {
+            currentSpeed = MAX_SPEED;
+        }
+    }
+
+    void Slowdown()
+    {
+        if (currentSpeed - 5 >= 0)
+        {
+            currentSpeed -= 5;
+        }
+        else 
+        {
+            currentSpeed = 0;
         }
     }
 }
