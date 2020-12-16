@@ -9,6 +9,9 @@ public class Part2_Agent : MonoBehaviour
 
     float fps; // Used to store Frames Per Second (FPS).
     float totalDistanceTravelled = 0;
+    public int NumberToSpawn;
+    List<GameObject> CollectedPassengers = new List<GameObject>();
+
 
     // The A* manager.
     private AStarManager AStarManager = new AStarManager();
@@ -28,10 +31,10 @@ public class Part2_Agent : MonoBehaviour
  
     [SerializeField]
     public GameObject PersonPrefab;
-    GameObject PersonInstance;
     
     
-   GameObject myPassenger;
+    
+   List <GameObject> myPassengers = new List<GameObject>();
 
     [SerializeField]
     int passengers = 0;
@@ -44,7 +47,7 @@ public class Part2_Agent : MonoBehaviour
     Text t_fps;
     Text t_Speed;
 
-    public GameObject go_passengers;
+    public GameObject go_Passengers;
     public GameObject go_Speed;
     
 
@@ -70,7 +73,8 @@ public class Part2_Agent : MonoBehaviour
 
     void InitialiseText()
     {
-        t_Passengers = go_passengers.GetComponent<Text>();
+        t_Passengers = go_Passengers.GetComponent<Text>();
+        t_Speed = go_Speed.GetComponent<Text>();
         t_Runtime = GameObject.Find("Canvas/Runtime").GetComponent<Text>();      
         t_fps = GameObject.Find("Canvas/FPS").GetComponent<Text>();
         
@@ -80,32 +84,57 @@ public class Part2_Agent : MonoBehaviour
     {
         System.Random rand = new System.Random(Guid.NewGuid().GetHashCode());
         GameObject randomSeed;
-        randomSeed = Waypoints[rand.Next(1, 12)];
+        randomSeed = Waypoints[rand.Next(2, 12)];       
+        NumberToSpawn = rand.Next(1, 4); 
         return randomSeed;
+    }
+
+    void CollectPassenger()
+    {
+        arrived = true;
+        List<GameObject> CollectedPassengers = new List<GameObject>();
+
+
+        for (int i = 0; i < NumberToSpawn; i++)
+        {
+            CollectedPassengers.Add(myPassengers[i]);
+            Destroy(myPassengers[i]);
+            Debug.Log(CollectedPassengers[i].name + " has been collected.");
+            passengers += 1;
+            MAX_SPEED = MAX_SPEED - (MAX_SPEED / 10 * passengers);
+        }
+        if (myPassengers != null)
+        {
+            myPassengers.Clear();
+        }
+       
+
     }
 
     void DeliverPassenger()
     {
         playTimer = false;
         isPlaying = false;
+        int i=0;
+
+        for (i=0; i < NumberToSpawn; i++)
+        {
+            CollectedPassengers.Add(Instantiate(PersonPrefab, myTaxi.transform.position - new Vector3(0.0f, 0f, 5.0f + i), Quaternion.identity));
+            CollectedPassengers[i].gameObject.tag = "Passenger";
+            CollectedPassengers[i].gameObject.name = myTaxi.name + " Passenger " + (i+1);
+            passengers -= 1;
+        }
         
-        myPassenger = Instantiate(PersonPrefab, myTaxi.transform.position - new Vector3(0.0f, 0f, 5.0f), Quaternion.identity);
-        myPassenger.gameObject.tag = "Passenger";
-        myPassenger.gameObject.name = myTaxi.name + " Passenger.";
-        passengers -= 1;
-        Debug.Log(myTaxi.name + " has arrived at their destination!");
-        t_Passengers.text = ("Passengers: " + passengers + "/10");
         
+        
+        currentSpeed = 0;
+        Debug.Log(myTaxi.name + " has completed their trip, and in " + Time.time + " seconds.");
+        t_Passengers.text = myTaxi.name + " Passengers: " + passengers.ToString();
+        t_Speed.text = myTaxi.name + " Speed: " + currentSpeed.ToString();
+
     }
 
-    void CollectPassenger()
-    {     
-            arrived = true;          
-            Destroy(myPassenger);
-            Debug.Log(myPassenger.name + " has been destroyed.");
-            passengers += 1;
-            MAX_SPEED = MAX_SPEED - (MAX_SPEED / 10 * passengers);
-    }
+   
 
     void ReturnToStart()
     {
@@ -137,11 +166,14 @@ public class Part2_Agent : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
+
         InitialiseText();
         myTaxi = this.gameObject;
         Application.targetFrameRate = 120;
         old_position = transform.position;
         myTaxi.transform.position = start.transform.position;
+
+        
 
         // Find all the waypoints in the level.
         GameObject[] GameObjectsWithWaypointTag;
@@ -157,12 +189,18 @@ public class Part2_Agent : MonoBehaviour
 
         GameObject randomNode;
         randomNode = RandomSeed();
-        myPassenger = Instantiate(PersonPrefab, randomNode.transform.position - new Vector3(-3.0f, 0f, -3.0f), Quaternion.identity);
-        myPassenger.gameObject.tag = "Passenger";
-        myPassenger.gameObject.name = myTaxi.name + " Passenger.";
 
+
+        for (int i = 0; i < NumberToSpawn; i++)
+        {         
+            myPassengers.Add(Instantiate(PersonPrefab, randomNode.transform.position - new Vector3(-3.0f + i, 0f, -3.0f), Quaternion.identity));
+            myPassengers[i].gameObject.tag = "Passenger";
+            myPassengers[i].gameObject.name = myTaxi.name + " Passenger " + (i+1);      
+        }
+
+      
         end = randomNode;
-        Debug.Log(myTaxi + " is driving from " + start + ", and collecting from " + end); // THIS WORKS
+        Debug.Log(myTaxi.name + " is collecting " + myPassengers.Count  +   " passengers from " + end.name); // THIS WORKS
         
 
 
@@ -214,7 +252,8 @@ public class Part2_Agent : MonoBehaviour
             fps = 1 / Time.unscaledDeltaTime;
             t_fps.text = "Framerate: " + fps.ToString("00");
             
-            t_Passengers.text = "Passengers: " + passengers.ToString() + "/10";
+            t_Passengers.text = myTaxi.name + " Passengers: " + passengers.ToString();
+            t_Speed.text = myTaxi.name + " Speed: " + currentSpeed.ToString();
             
  
             float distanceTravelled = Vector3.Distance(old_position, transform.position);
@@ -255,9 +294,9 @@ public class Part2_Agent : MonoBehaviour
                     {                
                         connectionsTravelled++;
                         // Check if our node contains our passenger.
-                        if (myPassenger != null)
+                        if (myPassengers.Count != 0)
                         {
-                            if (Vector3.Distance(myTaxi.transform.position, myPassenger.transform.position) < 10)
+                            if (Vector3.Distance(myTaxi.transform.position, myPassengers[0].transform.position) < 10)
                             {                           
                                 CollectPassenger();
                             }
@@ -297,7 +336,7 @@ public class Part2_Agent : MonoBehaviour
     {
         List<float> taxiDistancesToNextNode = new List<float>();
         GameObject[] otherTaxis = GameObject.FindGameObjectsWithTag("Taxi"); // working
-        Debug.Log(otherTaxis.Length);
+        //Debug.Log(otherTaxis.Length);
         bool coming_at_me = false;
         bool crashing = false;
         GameObject currentNode = ConnectionArray[connectionsTravelled].FromNode;
@@ -310,13 +349,11 @@ public class Part2_Agent : MonoBehaviour
         {
             if (otherTaxi.name == this.gameObject.name)
             {
-                Debug.Log("This is my taxi.");
                 continue;
             }
 
             // Gain access to information regarding other taxis.
             Part2_Agent path = otherTaxi.GetComponent<Part2_Agent>();
-            Debug.Log(path);
 
             if (path == null)
             {
@@ -342,10 +379,9 @@ public class Part2_Agent : MonoBehaviour
 
             float distanceToMe = Vector3.Distance(myTaxi.transform.position, otherTaxi.transform.position);
 
-            if (distanceToMe < 9) // the safety zone
+            if (distanceToMe < 8) // the safety zone
             {
                 taxiDistancesToNextNode.Add(Vector3.Distance(otherTaxi.transform.position, nextNode.transform.position));
-                Debug.Log("Distances added.");
                 i++;
                 crashing = true;
             }
@@ -379,7 +415,6 @@ public class Part2_Agent : MonoBehaviour
             else
             {               
                 Slowdown();
-
             }
 
         }
@@ -394,9 +429,9 @@ public class Part2_Agent : MonoBehaviour
 
     void Speedup()
     {
-        if (currentSpeed + 5 < MAX_SPEED)
+        if (currentSpeed + 2 < MAX_SPEED)
         {
-            currentSpeed += 5;
+            currentSpeed += 2;
         }
         else 
         {
@@ -411,13 +446,14 @@ public class Part2_Agent : MonoBehaviour
 
     void Slowdown()
     {
-        if (currentSpeed - 5 >= 0)
+        if (currentSpeed - 2 >= 0)
         {
-            currentSpeed -= 5;
+            currentSpeed -= 2;
         }
         else 
         {
             currentSpeed = 0;
         }
     }
+    
 }
